@@ -12,12 +12,12 @@ def normalize_path(path)
   return (File.expand_path path).sub(DIR_REGEX, "")
 end
 
-def process_sln_file(filepath)
+def process_sln_file(env, filepath)
   solution_file_dir = File.dirname(normalize_path(filepath))
 
   process = lambda do |line|
     if /(?<csproj>[^"]+\.csproj)/ =~ line
-      process_csproj_file(solution_file_dir + "/" + normalize_path(csproj))
+      process_csproj_file(env, solution_file_dir + "/" + normalize_path(csproj))
     end
   end
 
@@ -34,7 +34,7 @@ def artifact_pointer(project_filename)
   return p
 end
 
-def process_csproj_file(csproj_filename)
+def process_csproj_file(env, csproj_filename)
   csproj_root = File.dirname csproj_filename
   pointer = artifact_pointer csproj_filename
 
@@ -65,7 +65,7 @@ def process_csproj_file(csproj_filename)
   file csproj_filename
 
   file assembly_file => csproj_filename do
-    # TODO: call msbuild/xbuild
+    env.builder.build_project(csproj_filename)
   end
 
   source_files.each do |source_file|
@@ -73,8 +73,9 @@ def process_csproj_file(csproj_filename)
     file assembly_file => source_file
   end
 
-  project_references.each do |project_filename|
-    task pointer => artifact_pointer(project_filename)
+  project_references.each do |reference_project_filename|
+    puts "#{csproj_filename} -> #{reference_project_filename}"
+    task pointer => artifact_pointer(reference_project_filename)
   end
 end
 
@@ -238,18 +239,84 @@ class Xml
 end
 
 
+### Environment
+
+def which(cmd)
+  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+    exts.each do |ext|
+      exe = File.join(path, "#{cmd}#{ext}")
+      return exe if File.executable?(exe) && !File.directory?(exe)
+    end
+  end
+  return nil
+end
+
+class Build
+  def build_project(csproj_path)
+    raise "Not implemented"
+  end
+end
+
+class MSBuild < Build
+  def initialize()
+    @msbuild = which "msbuild"
+    @msbuild = FileList.new(normalize_path "#{ENV['windir']}/Microsoft.NET/Framework/**/MSBuild.exe").last if @msbuild == nil
+    raise "Can't find MSBuild" if @msbuild == nil
+  end
+
+  def build_project(csproj_path)
+    puts "#{@msbuild} /nologo /m:4 /v:quiet /clp:Summary /t:Debug #{csproj_path}"
+  end
+end
+
+class XBuild < Build
+  def initialize()
+    @xbuild = which "xbuild"
+    raise "Can't find XBuild" if @xbuild == nil
+  end
+end
+
+class Env
+  def self.construct()
+    ENV['windir'] == nil ? Posix.new : Win.new
+  end
+
+  def nuget()
+    nuget = FileList.new("**/nuget.exe").last
+    nuget = which "nuget" if nuget == nil
+    return nuget
+  end
+
+  def builder()
+    raise "Not implemented"
+  end
+
+  def xunit()
+    FileList.new("**/xunit.console.exe").last
+  end
+end
+
+class Win < Env
+  def builder()
+    MSBuild.new
+  end
+end
+
+class Posix < Env
+  def builder()
+    XBuild.new
+  end
+end
+
 ### Initialization
 
+
+env = Env.construct
+puts "nuget: #{env.nuget}"
+puts "builder: #{env.builder}"
+puts "xunit: #{env.xunit}"
+
 FileList.new("**/*.sln").each do |sln|
-  process_sln_file sln
+  process_sln_file(env, sln)
 end
-
-if ENV['windir'] == nil
-  puts "not on windows"
-  puts `which xbuild` 
-else
-  puts "windows"
-  puts FileList.new("#{ENV['windir']}\\Microsoft.NET\\Framework\\**\\MSBuild.exe")[0]
-end
-
-puts FileList.new("**/xunit.console.exe")[0]
