@@ -243,3 +243,13 @@ end
 FileList.new("**/*.sln").each do |sln|
   process_sln_file sln
 end
+
+if ENV['windir'] == nil
+  puts "not on windows"
+  puts `which xbuild` 
+else
+  puts "windows"
+  puts FileList.new("#{ENV['windir']}\\Microsoft.NET\\Framework\\**\\MSBuild.exe")[0]
+end
+
+puts FileList.new("**/xunit.console.exe")[0]
