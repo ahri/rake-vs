@@ -293,6 +293,7 @@ end
 
 ### Environment
 
+# Thanks to @mislav for this, found at https://stackoverflow.com/a/5471032
 def which(cmd)
   exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
   ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
