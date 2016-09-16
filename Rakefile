@@ -9,7 +9,6 @@ DIR = File.expand_path(File.dirname(__FILE__))
 DIR_REGEX = Regexp.new("^" + Regexp.escape(DIR + "/"))
 def normalize_path(path)
   path.gsub!("\\", "/")
-
   return (File.expand_path path).sub(DIR_REGEX, "")
 end
 
