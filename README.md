@@ -30,6 +30,13 @@ Status
 ------
 
 - [x] MSBuild
+- [ ] Sample project (in a branch)
+- [ ] Resource-awareness
+- [ ] Display in terms of artifacts
 - [ ] XBuild
 - [ ] XUnit on Posix
 - [ ] XUnit on Windows
+- [ ] Colours & unicode
+- [ ] MSTest on Windows
+- [ ] NUnit on Windows
+- [ ] NUnit on Posix
