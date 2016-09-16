@@ -1,6 +1,14 @@
-task :default do
-end
+desc "Build and test everything, as needed"
+task :default => :test
 
+desc "Run tests, as needed"
+task :test => :build
+
+desc "Build everything, as needed"
+task :build
+
+desc "Remove all assemblies and test notes"
+task :clean
 
 
 ### Tooling to build dependency graph
@@ -12,73 +20,116 @@ def normalize_path(path)
   return (File.expand_path path).sub(DIR_REGEX, "")
 end
 
-def process_sln_file(env, filepath)
-  solution_file_dir = File.dirname(normalize_path(filepath))
+class System
+  include Rake::DSL
 
-  process = lambda do |line|
-    if /(?<csproj>[^"]+\.csproj)/ =~ line
-      process_csproj_file(env, solution_file_dir + "/" + normalize_path(csproj))
+  def initialize(env)
+    @env = env
+
+    @project_dependency_map = {}
+    @project_to_artifact_map = {}
+  end
+
+  def process_sln(sln_path)
+    sln_dir_path = File.dirname(sln_path)
+
+    process = lambda do |line|
+      if /(?<csproj>[^"]+\.csproj)/ =~ line
+        process_csproj(sln_dir_path + "/" + normalize_path(csproj))
+      end
+    end
+
+    File.open(sln_path, 'r') do |f|
+      while line = f.gets
+        process.call line
+      end
     end
   end
 
-  File.open(filepath, 'r') do |f|
-    while line = f.gets
-      process.call line
+  def generate_tasks()
+    @project_dependency_map.each do |from, to|
+      to.each do |referenced|
+        file from => @project_to_artifact_map[referenced]
+      end
     end
   end
+
+  private
+
+  def self.last_test_pass_note(assembly_path)
+    "#{assembly_path}.pass"
+  end
+
+  def process_csproj(csproj_path)
+    csproj_root = File.dirname csproj_path
+
+    # metadata to collect
+    assembly_name = nil
+    output_type = nil
+    assembly_path = nil
+    source_paths = []
+    project_references = []
+    depends_on_xunit = false
+
+    in_debug = false
+    File.open(csproj_path, 'r') do |fp|
+      Xml.new
+        .tag_end("Project/PropertyGroup/AssemblyName", lambda {|value| assembly_name = value })
+        .tag_end("Project/PropertyGroup/OutputType", lambda {|value| output_type = value })
+        .tag_start("Project/PropertyGroup", lambda {|attrs| in_debug = /Debug/ =~ attrs['Condition'] })
+        .tag_end("Project/PropertyGroup/OutputPath", lambda {|value| assembly_path = normalize_path "#{csproj_root}/#{value}#{assembly_name}.#{if output_type == "Exe" then "exe" else "dll" end}" if in_debug })
+        .tag_start("Project/ItemGroup/Compile", lambda {|attrs| source_paths.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
+        .tag_start("Project/ItemGroup/ProjectReference", lambda {|attrs| project_references.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
+        .tag_start("Project/ItemGroup/Reference", lambda {|attrs| depends_on_xunit = true if attrs['Include'].start_with? 'xunit.core,' })
+        .parse fp
+    end
+
+    @project_dependency_map[csproj_path] = project_references
+    @project_to_artifact_map[csproj_path] = assembly_path
+
+    file csproj_path
+
+    if depends_on_xunit
+      last_test_pass_note = System.last_test_pass_note(assembly_path)
+      task :test => last_test_pass_note do
+        begin
+          @env.exec_exe(env.xunit, [assembly_path])
+          touch last_test_pass_note
+        rescue
+          STDERR.puts "Tests failed for #{assembly_path}"
+        end
+      end
+
+      task :clean do
+        rm_f last_test_pass_note
+      end
+    end
+
+    file assembly_path do
+      begin
+        @env.builder.build_project(csproj_path)
+        puts "Build succeeded for #{csproj_path}"
+      rescue
+        STDERR.puts "Build failed for #{csproj_path}"
+      end
+    end
+
+    task :build => assembly_path
+
+    task :clean do
+      rm_f assembly_path
+    end
+
+    file assembly_path => csproj_path
+
+    source_paths.each do |source_path|
+      file source_path
+      file assembly_path => source_path
+    end
+
+    # TODO: depend on resources
+  end
 end
-
-def artifact_pointer(project_filename)
-  p = "pointer: #{project_filename}"
-  puts p
-  return p
-end
-
-def process_csproj_file(env, csproj_filename)
-  csproj_root = File.dirname csproj_filename
-  pointer = artifact_pointer csproj_filename
-
-  # metadata to collect
-  assembly_name = nil
-  output_type = nil
-  assembly_file = nil
-  source_files = []
-  project_references = []
-  depends_on_xunit = false
-
-  in_debug = false
-  File.open(csproj_filename, 'r') do |fp|
-    Xml.new
-      .tag_end("Project/PropertyGroup/AssemblyName", lambda {|value| assembly_name = value })
-      .tag_end("Project/PropertyGroup/OutputType", lambda {|value| output_type = value })
-      .tag_start("Project/PropertyGroup", lambda {|attrs| in_debug = /Debug/ =~ attrs['Condition'] })
-      .tag_end("Project/PropertyGroup/OutputPath", lambda {|value| assembly_file = normalize_path "#{csproj_root}/#{value}#{assembly_name}.#{if output_type == "Exe" then "exe" else "dll" end}" if in_debug })
-      .tag_start("Project/ItemGroup/Compile", lambda {|attrs| source_files.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
-      .tag_start("Project/ItemGroup/ProjectReference", lambda {|attrs| project_references.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
-      .tag_start("Project/ItemGroup/Reference", lambda {|attrs| depends_on_xunit = true if attrs['Include'].start_with? 'xunit.core,' })
-      .parse fp
-  end
-
-  desc "#{assembly_file}#{if depends_on_xunit then " (TEST)" else "" end}"
-  task pointer => assembly_file
-
-  file csproj_filename
-
-  file assembly_file => csproj_filename do
-    env.builder.build_project(csproj_filename)
-  end
-
-  source_files.each do |source_file|
-    file source_file
-    file assembly_file => source_file
-  end
-
-  project_references.each do |reference_project_filename|
-    puts "#{csproj_filename} -> #{reference_project_filename}"
-    task pointer => artifact_pointer(reference_project_filename)
-  end
-end
-
 
 ### XML Parsing for .csproj files
 
@@ -253,6 +304,8 @@ def which(cmd)
 end
 
 class Build
+  include Rake::DSL
+
   def build_project(csproj_path)
     raise "Not implemented"
   end
@@ -266,7 +319,9 @@ class MSBuild < Build
   end
 
   def build_project(csproj_path)
-    puts "#{@msbuild} /nologo /m:4 /v:quiet /clp:Summary /t:Debug #{csproj_path}"
+    verbose false do
+      sh "#{@msbuild} /nologo /m:4 /v:quiet #{csproj_path}"
+    end
   end
 end
 
@@ -309,14 +364,11 @@ class Posix < Env
   end
 end
 
+
 ### Initialization
 
-
-env = Env.construct
-puts "nuget: #{env.nuget}"
-puts "builder: #{env.builder}"
-puts "xunit: #{env.xunit}"
-
-FileList.new("**/*.sln").each do |sln|
-  process_sln_file(env, sln)
+system = System.new Env.construct
+FileList.new("**/*.sln").each do |sln_path|
+  system.process_sln(sln_path)
 end
+system.generate_tasks
