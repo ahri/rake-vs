@@ -29,6 +29,22 @@ nth degree with full access to Rake and a complete language to express yourself
 in - need to download a random number from an online source and package your
 artifacts up into a zip with that filename? Rake's got you covered.
 
+Oh, and you don't need to know any Ruby or Rake stuff to get started; just drag
+the Rakefile in, and run `rake`!
+
+
+Why not [Albacore](http://albacorebuild.net/)?
+----------------------------------------------
+- rake-vs has no dependencies (except Ruby & Rake of course!) which makes it
+  easier to get started, even if you have no familiarity with Ruby or Rake
+- Albacore is a more complete solution, whereas rake-vs is trying to be as
+  drag-and-drop as possible - if you're doing some very tricky things, then you
+  probably should be using Albacore
+- rake-vs assumes that you want to process all solution files, build all
+  projects, and test all assemblies referencing a test framework; in that sense
+  it's a zero-configuration approach, aiming at solving 90% of scenarios with
+  ease
+
 
 Usage
 -----
