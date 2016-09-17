@@ -33,11 +33,12 @@ Status
 - [ ] Sample project (in a branch)
 - [ ] nuget restore
 - [ ] Resource-awareness
+- [ ] XUnit on Windows
 - [ ] Display in terms of artifacts
+- [ ] TeamCity support
 - [ ] XBuild
 - [ ] XUnit on Posix
-- [ ] XUnit on Windows
-- [ ] Colours & unicode
-- [ ] MSTest on Windows
-- [ ] NUnit on Windows
-- [ ] NUnit on Posix
+- [ ] Colours & unicode?
+- [ ] MSTest on Windows?
+- [ ] NUnit on Windows?
+- [ ] NUnit on Posix?
