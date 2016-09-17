@@ -127,6 +127,7 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 
 TODO
 ----
+- [ ] Dotnet Core support?
 - [ ] Colours & unicode?
 - [ ] MSTest on Windows?
 - [ ] NUnit on Windows?
