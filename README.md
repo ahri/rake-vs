@@ -2,8 +2,6 @@ Rake for Visual Studio Solutions/Projects
 =========================================
 > Build and test your Visual Studio solution using [Rake](http://rake.rubyforge.org/)
 
-**_Work-in-progress_**
-
 
 The problem
 -----------
@@ -98,6 +96,11 @@ Built: Sample/Sample/bin/Debug/Sample.exe # only rebuild the exe
 
 Extra features!
 ---------------
+### Works on Linux and OSX, maybe even BSD!
+Through the magic of Mono and XBuild, the Rakefile can build in non-Windows
+environments, making it the easiest cross-platform .NET build tool abstraction
+in the universe. Guaranteed!
+
 ### TeamCity compatible
 Right now this is only because XUnit supports TeamCity natively ;)
 
@@ -119,12 +122,6 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 
 TODO
 ----
-- [x] XBuild
-- [x] XUnit on Posix
-- [x] Don't download nuget on Posix, as it won't run with Mono
-- [ ] Exit after trying to build everything, with a 1 if anything didn't build
-- [ ] Exit after trying to test everything, with a 1 if anything failed
-- [ ] Update README to specify that it's cross-platform via Mono
 - [ ] Colours & unicode?
 - [ ] MSTest on Windows?
 - [ ] NUnit on Windows?

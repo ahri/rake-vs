@@ -10,6 +10,13 @@ task :build
 desc "Remove all assemblies and test notes"
 task :clean
 
+ERRORS = []
+at_exit do
+  exit 0 if ERRORS.empty?
+
+  ERRORS.each { |err| STDERR.puts err }
+  exit 1
+end
 
 ### Tooling to build dependency graph
 
@@ -97,32 +104,35 @@ class System
       last_test_pass_note = System.last_test_pass_note(assembly_path)
       task :test => last_test_pass_note
       file last_test_pass_note => assembly_path do
-        begin
-          @env.xunit "#{assembly_path}"
-          verbose(false) { touch last_test_pass_note }
-        rescue => e
-          raise "Tests failed for #{assembly_path}: #{e}"
+        if File.exist? assembly_path
+          begin
+            @env.xunit "#{assembly_path}"
+            verbose(false) { touch last_test_pass_note }
+          rescue => e
+            ERRORS.push "Tests failed for #{assembly_path}: #{e}"
+          end
         end
       end
 
       task :clean do
-        rm_f last_test_pass_note
+        verbose(false) { rm_f last_test_pass_note }
       end
     end
 
     file assembly_path do
       begin
+        verbose(false) { rm_f assembly_path } # force the builder to work
         @env.builder.build_project(csproj_path)
         puts "Built: #{assembly_path}"
       rescue => e
-        raise "Build failed for #{assembly_path}: #{e}"
+        ERRORS.push "Build failed for #{assembly_path}: #{e}"
       end
     end
 
     task :build => assembly_path
 
     task :clean do
-      rm_f assembly_path
+      verbose(false) { rm_f assembly_path }
     end
 
     file assembly_path => csproj_path
@@ -366,8 +376,6 @@ class Env
   end
 
   def exec_quiet(cmd)
-    puts "DEBUG EXEC_QUIET: #{cmd}"
-
     require 'open3'
     Open3.popen2e(cmd) do |stdin, stdout_and_stderr, wait_thr|
       throw "ERROR:\n#{stdout_and_stderr.gets}" if wait_thr.value.exitstatus != 0
