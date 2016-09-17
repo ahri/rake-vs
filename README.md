@@ -31,6 +31,7 @@ Status
 
 - [x] MSBuild
 - [ ] Sample project (in a branch)
+- [ ] nuget restore
 - [ ] Resource-awareness
 - [ ] Display in terms of artifacts
 - [ ] XBuild
