@@ -20,11 +20,6 @@ def normalize_path(path)
   return (File.expand_path path).sub(DIR_REGEX, "")
 end
 
-def output_only_on_failure(cmd)
-  out = `#{cmd}`
-  STDERR.puts "ERROR: #{out}" if $? != 0
-end
-
 class System
   include Rake::DSL
 
@@ -38,7 +33,7 @@ class System
   def process_sln(sln_path)
     sln_dir_path = File.dirname(sln_path)
 
-    output_only_on_failure "#{@env.nuget} restore #{sln_path}"
+    @env.nuget "restore #{sln_path}"
 
     process = lambda do |line|
       if /(?<csproj>[^"]+\.csproj)/ =~ line
@@ -48,7 +43,7 @@ class System
 
     File.open(sln_path, 'r') do |f|
       while line = f.gets
-        process.call line
+        process.call line.force_encoding('utf-8')
       end
     end
   end
@@ -103,10 +98,10 @@ class System
       task :test => last_test_pass_note
       file last_test_pass_note => assembly_path do
         begin
-          @env.exec(@env.xunit, [assembly_path])
+          @env.xunit "#{assembly_path}"
           verbose(false) { touch last_test_pass_note }
         rescue => e
-          STDERR.puts "Tests failed for #{assembly_path}: #{e}"
+          raise "Tests failed for #{assembly_path}: #{e}"
         end
       end
 
@@ -118,9 +113,9 @@ class System
     file assembly_path do
       begin
         @env.builder.build_project(csproj_path)
-        puts "Build succeeded for #{assembly_path}"
-      rescue
-        STDERR.puts "Build failed for #{assembly_path}"
+        puts "Built: #{assembly_path}"
+      rescue => e
+        raise "Build failed for #{assembly_path}: #{e}"
       end
     end
 
@@ -327,21 +322,27 @@ class Build
 end
 
 class MSBuild < Build
-  def initialize()
+  def initialize(env)
+    @env = env
     @msbuild = which "msbuild"
     @msbuild = FileList.new(normalize_path "#{ENV['windir']}/Microsoft.NET/Framework/**/MSBuild.exe").last if @msbuild == nil
     raise "Can't find MSBuild" if @msbuild == nil
   end
 
   def build_project(csproj_path)
-    verbose(false) { sh "#{@msbuild} /nologo /m:4 /v:quiet #{csproj_path}" }
+    @env.exec_quiet "#{@msbuild} /nologo /m:4 /v:quiet #{csproj_path}"
   end
 end
 
 class XBuild < Build
-  def initialize()
+  def initialize(env)
+    @env = env
     @xbuild = which "xbuild"
     raise "Can't find XBuild" if @xbuild == nil
+  end
+
+  def build_project(csproj_path)
+    @env.exec_quiet "#{@xbuild} /nologo /v:quiet #{csproj_path}"
   end
 end
 
@@ -352,7 +353,34 @@ class Env
     ENV['windir'] == nil ? Posix.new : Win.new
   end
 
-  def nuget()
+  def nuget(cmd)
+    raise "Not implemented"
+  end
+
+  def builder()
+    raise "Not implemented"
+  end
+
+  def xunit(cmd)
+    raise "Not implemented"
+  end
+
+  def exec_quiet(cmd)
+    puts "DEBUG EXEC_QUIET: #{cmd}"
+
+    require 'open3'
+    Open3.popen2e(cmd) do |stdin, stdout_and_stderr, wait_thr|
+      throw "ERROR:\n#{stdout_and_stderr.gets}" if wait_thr.value.exitstatus != 0
+    end
+  end
+end
+
+class Win < Env
+  def builder()
+    MSBuild.new self
+  end
+
+  def nuget(cmd)
     nuget = FileList.new("**/nuget.exe").last
     nuget = which "nuget" if nuget == nil
 
@@ -368,40 +396,34 @@ class Env
         end
         puts "...done!"
         nuget = "./nuget.exe"
-      rescue
-        STDERR.puts "ERROR: download of nuget failed, please install manually"
+      rescue => e
+        raise "ERROR: download of nuget failed, please install manually\n#{e}"
       end
     end
 
-    return nuget
+    exec_quiet "#{nuget} #{cmd}"
   end
 
-  def builder()
-    raise "Not implemented"
-  end
-
-  def xunit()
-    FileList.new("**/xunit.console.exe").last
-  end
-
-  def exec(exe, args)
-    raise "Not implemented"
-  end
-end
-
-class Win < Env
-  def builder()
-    MSBuild.new
-  end
-
-  def exec(exe, args)
-    verbose(false) { sh "#{exe} #{args.join " "}" }
+  def xunit(cmd)
+    @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
+    verbose(false) { sh "#{@xunit} #{cmd}" }
   end
 end
 
 class Posix < Env
   def builder()
-    XBuild.new
+    XBuild.new self
+  end
+
+  def nuget(cmd)
+    nuget = which "nuget"
+    raise "Please install nuget" if nuget == nil
+    exec_quiet "#{nuget} #{cmd}"
+  end
+
+  def xunit(cmd)
+    @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
+    verbose(false) { sh "mono #{@xunit} #{cmd} | tr -d '\\f'" }
   end
 end
 

@@ -59,9 +59,9 @@ $ git clean -xfd  # remove everything we haven't committed to source control
 $ rake
 Downloading nuget...
 ...done!
-Build succeeded for Sample/Library/bin/Debug/Library.dll
-Build succeeded for Sample/Sample/bin/Debug/Sample.exe
-Build succeeded for Sample/Tests/bin/Debug/Tests.dll
+Built: Sample/Library/bin/Debug/Library.dll
+Built: Sample/Sample/bin/Debug/Sample.exe
+Built: Sample/Tests/bin/Debug/Tests.dll
 xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
   Discovering: Tests
   Discovered:  Tests
@@ -74,13 +74,13 @@ $ rake # does nothing - we've not changed any files
 
 $ touch Sample/Sample/Program.cs # pretend we made a change to Program.cs
 $ rake
-Build succeeded for Sample/Sample/bin/Debug/Sample.exe
+Built: Sample/Sample/bin/Debug/Sample.exe
 # Note: the exe was rebuilt, but no tests were run
 
 $ touch Sample/Library/Library.cs # change something lower down
-Build succeeded for Sample/Library/bin/Debug/Library.dll
-Build succeeded for Sample/Sample/bin/Debug/Sample.exe
-Build succeeded for Sample/Tests/bin/Debug/Tests.dll
+Built: Sample/Library/bin/Debug/Library.dll
+Built: Sample/Sample/bin/Debug/Sample.exe
+Built: Sample/Tests/bin/Debug/Tests.dll
 xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
   Discovering: Tests
   Discovered:  Tests
@@ -93,7 +93,7 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 
 $ touch Sample/Sample/Resources/icon.ico # make a change to an icon the exe depends on
 $ rake
-Build succeeded for Sample/Sample/bin/Debug/Sample.exe # only rebuild the exe
+Built: Sample/Sample/bin/Debug/Sample.exe # only rebuild the exe
 ```
 
 Extra features!
@@ -107,9 +107,9 @@ rm -f Sample/Sample/bin/Debug/Sample.exe
 rm -f Sample/Library/bin/Debug/Library.dll
 rm -f Sample/Tests/bin/Debug/Tests.dll.pass
 rm -f Sample/Tests/bin/Debug/Tests.dll
-Build succeeded for Sample/Library/bin/Debug/Library.dll
-Build succeeded for Sample/Sample/bin/Debug/Sample.exe
-Build succeeded for Sample/Tests/bin/Debug/Tests.dll
+Built: Sample/Library/bin/Debug/Library.dll
+Built: Sample/Sample/bin/Debug/Sample.exe
+Built: Sample/Tests/bin/Debug/Tests.dll
 xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 ##teamcity[testSuiteStarted name='Test collection for Tests.Tests (1)' flowId='231651e4c84b444f8090dbe307b5a75c']
 ##teamcity[testStarted name='Tests.Tests.Test' flowId='231651e4c84b444f8090dbe307b5a75c']
@@ -119,8 +119,11 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 
 TODO
 ----
-- [ ] XBuild
-- [ ] XUnit on Posix
+- [x] XBuild
+- [x] XUnit on Posix
+- [x] Don't download nuget on Posix, as it won't run with Mono
+- [ ] Exit after trying to build everything, with a 1 if anything didn't build
+- [ ] Exit after trying to test everything, with a 1 if anything failed
 - [ ] Update README to specify that it's cross-platform via Mono
 - [ ] Colours & unicode?
 - [ ] MSTest on Windows?
