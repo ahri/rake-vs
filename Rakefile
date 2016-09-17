@@ -20,6 +20,11 @@ def normalize_path(path)
   return (File.expand_path path).sub(DIR_REGEX, "")
 end
 
+def output_only_on_failure(cmd)
+  out = `#{cmd}`
+  STDERR.puts "ERROR: #{out}" if $? != 0
+end
+
 class System
   include Rake::DSL
 
@@ -32,6 +37,8 @@ class System
 
   def process_sln(sln_path)
     sln_dir_path = File.dirname(sln_path)
+
+    output_only_on_failure "#{@env.nuget} restore #{sln_path}"
 
     process = lambda do |line|
       if /(?<csproj>[^"]+\.csproj)/ =~ line
@@ -91,12 +98,13 @@ class System
 
     if depends_on_xunit
       last_test_pass_note = System.last_test_pass_note(assembly_path)
-      task :test => last_test_pass_note do
+      task :test => last_test_pass_note
+      file last_test_pass_note do
         begin
-          @env.exec_exe(env.xunit, [assembly_path])
-          touch last_test_pass_note
-        rescue
-          STDERR.puts "Tests failed for #{assembly_path}"
+          @env.exec(@env.xunit, [assembly_path])
+          verbose(false) { touch last_test_pass_note }
+        rescue => e
+          STDERR.puts "Tests failed for #{assembly_path}: #{e}"
         end
       end
 
@@ -321,9 +329,7 @@ class MSBuild < Build
   end
 
   def build_project(csproj_path)
-    verbose false do
-      sh "#{@msbuild} /nologo /m:4 /v:quiet #{csproj_path}"
-    end
+    verbose(false) { sh "#{@msbuild} /nologo /m:4 /v:quiet #{csproj_path}" }
   end
 end
 
@@ -335,6 +341,8 @@ class XBuild < Build
 end
 
 class Env
+  include Rake::DSL
+
   def self.construct()
     ENV['windir'] == nil ? Posix.new : Win.new
   end
@@ -342,6 +350,24 @@ class Env
   def nuget()
     nuget = FileList.new("**/nuget.exe").last
     nuget = which "nuget" if nuget == nil
+
+    if nuget == nil
+      require 'net/http'
+      begin
+        puts "Downloading nuget..."
+        Net::HTTP.start("dist.nuget.org") do |http|
+            resp = http.get("/win-x86-commandline/latest/nuget.exe")
+            open("nuget.exe", "wb") do |file|
+                file.write(resp.body)
+            end
+        end
+        puts "...done!"
+        nuget = "./nuget.exe"
+      rescue
+        STDERR.puts "ERROR: download of nuget failed, please install manually"
+      end
+    end
+
     return nuget
   end
 
@@ -352,11 +378,19 @@ class Env
   def xunit()
     FileList.new("**/xunit.console.exe").last
   end
+
+  def exec(exe, args)
+    raise "Not implemented"
+  end
 end
 
 class Win < Env
   def builder()
     MSBuild.new
+  end
+
+  def exec(exe, args)
+    sh "#{exe} #{args.join " "}"
   end
 end
 
@@ -368,7 +402,6 @@ end
 
 
 ### Initialization
-
 system = System.new Env.construct
 FileList.new("**/*.sln").each do |sln_path|
   system.process_sln(sln_path)
