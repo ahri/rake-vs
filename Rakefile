@@ -10,6 +10,27 @@ task :build
 desc "Remove all assemblies and test notes"
 task :clean
 
+desc "Push to git after testing"
+task :push => :test do
+  git = which "git"
+  if git == nil
+    ERRORS.push "Install git to use this task"
+  elsif not ERRORS.empty?
+    ERRORS.push "Not pushing due to errors/failing tests"
+  else
+    git_status = `git status`
+    if /^nothing to commit, working directory clean$/ !~ git_status
+      ERRORS.push "Refusing to push, working directory is not clean:\n\n#{git_status}"
+    end
+
+    begin
+      verbose(false) { sh "git push" }
+    rescue => e
+      ERRORS.push "git failed: #{e}"
+    end
+  end
+end
+
 ERRORS = []
 at_exit do
   exit 0 if ERRORS.empty?
@@ -258,7 +279,7 @@ class Xml
         end
 
         if tag_buffer.start_with? "!--"
-          if not tag_buffer.end_with? "--"
+          unless tag_buffer.end_with? "--"
             add_to_buffer.call c
             next
           end
@@ -284,7 +305,7 @@ class Xml
       end
     end
 
-    if not @stack.empty?
+    unless @stack.empty?
       raise "Tags left on stack: #{Xml.stack_to_trail @stack}"
     end
   end
@@ -414,7 +435,11 @@ class Win < Env
 
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
-    verbose(false) { sh "#{@xunit} #{cmd}" }
+    begin
+      verbose(false) { sh "#{@xunit} #{cmd}" }
+    rescue => e
+      ERRORS.push "xunit failed: #{e}"
+    end
   end
 end
 
@@ -431,7 +456,11 @@ class Posix < Env
 
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
-    verbose(false) { sh "mono #{@xunit} #{cmd} | tr -d '\\f'" }
+    begin
+      verbose(false) { sh "mono #{@xunit} #{cmd} | tr -d '\\f'" }
+    rescue => e
+      ERRORS.push "xunit failed: #{e}"
+    end
   end
 end
 

@@ -42,6 +42,7 @@ $ rake -T
 rake build    # Build everything, as needed
 rake clean    # Remove all assemblies and test notes
 rake default  # Build and test everything, as needed
+rake push     # Push to git after testing
 rake test     # Run tests, as needed
 
 $ rake clean test    # remove binaries and test everything
@@ -96,6 +97,10 @@ Built: Sample/Sample/bin/Debug/Sample.exe # only rebuild the exe
 
 Extra features!
 ---------------
+### Has a task to push to git
+And of course it only pushes if your tests are passing. And it only tests what
+hasn't already been tested. Awesome.
+
 ### Works on Linux and OSX, maybe even BSD!
 Through the magic of Mono and XBuild, the Rakefile can build in non-Windows
 environments, making it the easiest cross-platform .NET build tool abstraction
