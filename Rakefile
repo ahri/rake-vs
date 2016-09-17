@@ -75,6 +75,7 @@ class System
     output_type = nil
     assembly_path = nil
     source_paths = []
+    resource_paths = []
     project_references = []
     depends_on_xunit = false
 
@@ -88,6 +89,7 @@ class System
         .tag_start("Project/ItemGroup/Compile", lambda {|attrs| source_paths.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
         .tag_start("Project/ItemGroup/ProjectReference", lambda {|attrs| project_references.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
         .tag_start("Project/ItemGroup/Reference", lambda {|attrs| depends_on_xunit = true if attrs['Include'].start_with? 'xunit.core,' })
+        .tag_start("Project/ItemGroup/None", lambda {|attrs| resource_paths.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
         .parse fp
     end
 
@@ -116,9 +118,9 @@ class System
     file assembly_path do
       begin
         @env.builder.build_project(csproj_path)
-        puts "Build succeeded for #{csproj_path}"
+        puts "Build succeeded for #{assembly_path}"
       rescue
-        STDERR.puts "Build failed for #{csproj_path}"
+        STDERR.puts "Build failed for #{assembly_path}"
       end
     end
 
@@ -135,7 +137,10 @@ class System
       file assembly_path => source_path
     end
 
-    # TODO: depend on resources
+    resource_paths.each do |resource_path|
+      file resource_path
+      file assembly_path => resource_path
+    end
   end
 end
 
@@ -390,7 +395,7 @@ class Win < Env
   end
 
   def exec(exe, args)
-    sh "#{exe} #{args.join " "}"
+    verbose(false) { sh "#{exe} #{args.join " "}" }
   end
 end
 
