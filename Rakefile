@@ -136,7 +136,7 @@ class System
       end
 
       task :clean do
-        verbose(false) { rm_f last_test_pass_note }
+        rm_f last_test_pass_note
       end
     end
 
@@ -153,7 +153,7 @@ class System
     task :build => assembly_path
 
     task :clean do
-      verbose(false) { rm_f assembly_path }
+      rm_f assembly_path
     end
 
     file assembly_path => csproj_path
