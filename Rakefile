@@ -56,7 +56,7 @@ class System
   def generate_tasks()
     @project_dependency_map.each do |from, to|
       to.each do |referenced|
-        file from => @project_to_artifact_map[referenced]
+        file @project_to_artifact_map[from]=> @project_to_artifact_map[referenced]
       end
     end
   end
@@ -101,7 +101,7 @@ class System
     if depends_on_xunit
       last_test_pass_note = System.last_test_pass_note(assembly_path)
       task :test => last_test_pass_note
-      file last_test_pass_note do
+      file last_test_pass_note => assembly_path do
         begin
           @env.exec(@env.xunit, [assembly_path])
           verbose(false) { touch last_test_pass_note }
