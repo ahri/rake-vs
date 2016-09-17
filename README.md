@@ -32,14 +32,11 @@ Status
 - [x] MSBuild
 - [x] Sample project (in a branch)
 - [x] nuget restore
-- [ ] demo nuget restore
 - [ ] Resource-awareness
-- [ ] demo resource awareness
 - [x] XUnit on Windows
-- [ ] demo only execute tests when needed
 - [ ] Display in terms of artifacts
 - [x] TeamCity support
-- [ ] demo xunit output when TEAMCITY_PROJECT_NAME is set
+- [ ] Update README for the above, including demo xunit output when TEAMCITY_PROJECT_NAME is set
 - [ ] XBuild
 - [ ] XUnit on Posix
 - [ ] Colours & unicode?
