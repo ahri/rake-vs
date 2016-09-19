@@ -18,13 +18,14 @@ task :push => :test do
   elsif not ERRORS.empty?
     ERRORS.push "Not pushing due to errors/failing tests"
   else
-    git_status = `git status`
-    if /^nothing to commit, working directory clean$/ !~ git_status
+    git_status = `git -c color.status=always status`
+    if /^nothing to commit, working (directory|tree) clean$/ !~ git_status
       ERRORS.push "Refusing to push, working directory is not clean:\n\n#{git_status}"
+      next
     end
 
     begin
-      verbose(false) { sh "git push" }
+      verbose(false) { sh "git -c color.status=always push" }
     rescue => e
       ERRORS.push "git failed: #{e}"
     end
