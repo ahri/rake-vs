@@ -355,13 +355,13 @@ end
 class MSBuild < Build
   def initialize(env)
     @env = env
-    @msbuild = which "msbuild"
+    @msbuild = normalize_path(which "msbuild")
     @msbuild = FileList.new(normalize_path "#{ENV['windir']}/Microsoft.NET/Framework/**/MSBuild.exe").last if @msbuild == nil
     raise "Can't find MSBuild" if @msbuild == nil
   end
 
   def build_project(csproj_path)
-    @env.exec_quiet "#{@msbuild} /nologo /m:4 /v:quiet #{csproj_path}"
+    @env.exec_quiet "\"#{@msbuild}\" /nologo /m:4 /v:quiet #{csproj_path}"
   end
 end
 
@@ -373,7 +373,7 @@ class XBuild < Build
   end
 
   def build_project(csproj_path)
-    @env.exec_quiet "#{@xbuild} /nologo /v:quiet #{csproj_path}"
+    @env.exec_quiet "\"#{@xbuild}\" /nologo /v:quiet #{csproj_path}"
   end
 end
 
@@ -430,7 +430,7 @@ class Win < Env
       end
     end
 
-    exec_quiet "#{nuget} #{cmd}"
+    exec_quiet "\"#{nuget}\" #{cmd}"
   end
 
   def xunit(cmd)
@@ -447,7 +447,7 @@ class Posix < Env
   def nuget(cmd)
     nuget = which "nuget"
     raise "Please install nuget" if nuget == nil
-    exec_quiet "#{nuget} #{cmd}"
+    exec_quiet "\"#{nuget}\" #{cmd}"
   end
 
   def xunit(cmd)
