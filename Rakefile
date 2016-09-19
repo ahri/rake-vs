@@ -435,11 +435,7 @@ class Win < Env
 
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
-    begin
-      verbose(false) { sh "#{@xunit} #{cmd}" }
-    rescue => e
-      ERRORS.push "xunit failed: #{e}"
-    end
+    verbose(false) { sh "#{@xunit} #{cmd}" }
   end
 end
 
@@ -456,11 +452,8 @@ class Posix < Env
 
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
-    begin
-      verbose(false) { sh "mono #{@xunit} #{cmd} | tr -d '\\f'" }
-    rescue => e
-      ERRORS.push "xunit failed: #{e}"
-    end
+    # using -noshadow per https://github.com/xunit/xunit/issues/957
+    verbose(false) { sh "mono #{@xunit} #{cmd} -noshadow | tr -d '\\f'; exit $PIPESTATUS" }
   end
 end
 
