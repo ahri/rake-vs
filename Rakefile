@@ -32,6 +32,7 @@ task :push => :test do
   end
 end
 
+STDOUT.sync = true
 ERRORS = []
 at_exit do
   exit 0 if ERRORS.empty?
@@ -145,7 +146,7 @@ class System
       begin
         verbose(false) { rm_f assembly_path } # force the builder to work
         @env.builder.build_project(csproj_path)
-	verbose(false) { touch assembly_path }
+        verbose(false) { touch assembly_path }
         puts "Built: #{assembly_path}"
       rescue => e
         ERRORS.push "Build failed for #{assembly_path}: #{e}"
