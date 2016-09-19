@@ -145,6 +145,7 @@ class System
       begin
         verbose(false) { rm_f assembly_path } # force the builder to work
         @env.builder.build_project(csproj_path)
+	verbose(false) { touch assembly_path }
         puts "Built: #{assembly_path}"
       rescue => e
         ERRORS.push "Build failed for #{assembly_path}: #{e}"
@@ -449,6 +450,17 @@ class Posix < Env
     nuget = which "nuget"
     raise "Please install nuget" if nuget == nil
     exec_quiet "\"#{nuget}\" #{cmd}"
+  end
+
+  def nuget(cmd)
+    nuget = FileList.new("**/nuget.exe").last
+    if nuget != nil
+      exec_quiet "mono \"#{nuget}\" #{cmd}"
+    else
+      nuget = which "nuget"
+      raise "Please install nuget" if nuget == nil
+      exec_quiet "\"#{nuget}\" #{cmd}"
+    end
   end
 
   def xunit(cmd)
