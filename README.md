@@ -106,7 +106,7 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 # Note that a rebuild of everything depending on Library.dll was triggered,
 # which in turn forced re-execution of affected tests
 
-$ touch Sample/Sample/Resources/icon.ico # make a change to an icon the exe depends on
+$ touch Sample/Sample/Resources/blank.txt # make a change to a txt file the exe depends on
 $ rake
 Built: Sample/Sample/bin/Debug/Sample.exe # only rebuild the exe
 ```
