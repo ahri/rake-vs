@@ -400,9 +400,27 @@ class Env
   end
 
   def exec_quiet(cmd)
+    exec_with_exclusions(cmd, [/.*/])
+  end
+
+  def exec_with_exclusions(cmd, exclusions)
     require 'open3'
     Open3.popen2e(cmd) do |stdin, stdout_and_stderr, wait_thr|
-      throw "ERROR:\n#{stdout_and_stderr.gets}" if wait_thr.value.exitstatus != 0
+      while line = stdout_and_stderr.gets
+        exclude = false
+        if wait_thr.value.exitstatus == 0
+          exclusions.each do |exclusion|
+            if exclusion =~ line
+              exclude = true
+              break
+            end
+          end
+        end
+
+        puts line unless exclude
+      end
+
+      throw "ERROR: cmd failed with #{wait_thr.value.exitstatus}: #{cmd}" if wait_thr.value.exitstatus != 0
     end
   end
 
@@ -431,6 +449,10 @@ class Env
 
     return nuget
   end
+
+  def self.nuget_exclusions()
+    [/^MSBuild auto-detection: /, /^All packages .* are already installed\.$/]
+  end
 end
 
 class Win < Env
@@ -439,7 +461,7 @@ class Win < Env
   end
 
   def nuget(cmd)
-    exec_quiet "\"#{Env.nuget_path}\" #{cmd}"
+    exec_with_exclusions("\"#{Env.nuget_path}\" #{cmd}", Env.nuget_exclusions)
   end
 
   def xunit(cmd)
@@ -455,7 +477,7 @@ class Posix < Env
 
   def nuget(cmd)
     path = Env.nuget_path
-    exec_quiet "#{path.end_with?(".exe") ? "mono " : ""}\"#{path}\" #{cmd}"
+    exec_with_exclusions("#{path.end_with?(".exe") ? "mono " : ""}\"#{path}\" #{cmd}", Env.nuget_exclusions)
   end
 
   def xunit(cmd)
