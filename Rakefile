@@ -405,6 +405,32 @@ class Env
       throw "ERROR:\n#{stdout_and_stderr.gets}" if wait_thr.value.exitstatus != 0
     end
   end
+
+  def self.nuget_download()
+    require 'net/http'
+    begin
+      puts "Downloading nuget..."
+      Net::HTTP.start("dist.nuget.org") do |http|
+          resp = http.get("/win-x86-commandline/latest/nuget.exe")
+          open("nuget.exe", "wb") do |file|
+              file.write(resp.body)
+          end
+      end
+      puts "...done!"
+      return "./nuget.exe"
+    rescue => e
+      raise "ERROR: download of nuget failed, please install manually\n#{e}"
+    end
+  end
+
+  def self.nuget_path()
+    nuget = FileList.new("**/nuget.exe").last
+    nuget = which "nuget" if nuget == nil
+    nuget = Env.nuget_download if nuget == nil
+    raise "Please install nuget" if nuget == nil
+
+    return nuget
+  end
 end
 
 class Win < Env
@@ -413,27 +439,7 @@ class Win < Env
   end
 
   def nuget(cmd)
-    nuget = FileList.new("**/nuget.exe").last
-    nuget = which "nuget" if nuget == nil
-
-    if nuget == nil
-      require 'net/http'
-      begin
-        puts "Downloading nuget..."
-        Net::HTTP.start("dist.nuget.org") do |http|
-            resp = http.get("/win-x86-commandline/latest/nuget.exe")
-            open("nuget.exe", "wb") do |file|
-                file.write(resp.body)
-            end
-        end
-        puts "...done!"
-        nuget = "./nuget.exe"
-      rescue => e
-        raise "ERROR: download of nuget failed, please install manually\n#{e}"
-      end
-    end
-
-    exec_quiet "\"#{nuget}\" #{cmd}"
+    exec_quiet "\"#{Env.nuget_path}\" #{cmd}"
   end
 
   def xunit(cmd)
@@ -448,20 +454,8 @@ class Posix < Env
   end
 
   def nuget(cmd)
-    nuget = which "nuget"
-    raise "Please install nuget" if nuget == nil
-    exec_quiet "\"#{nuget}\" #{cmd}"
-  end
-
-  def nuget(cmd)
-    nuget = FileList.new("**/nuget.exe").last
-    if nuget != nil
-      exec_quiet "mono \"#{nuget}\" #{cmd}"
-    else
-      nuget = which "nuget"
-      raise "Please install nuget" if nuget == nil
-      exec_quiet "\"#{nuget}\" #{cmd}"
-    end
+    path = Env.nuget_path
+    exec_quiet "#{path.end_with?(".exe") ? "mono " : ""}\"#{path}\" #{cmd}"
   end
 
   def xunit(cmd)
