@@ -32,6 +32,11 @@ task :push => :test do
   end
 end
 
+
+### General tooling
+
+require 'open3'
+
 STDOUT.sync = true
 ERRORS = []
 at_exit do
@@ -40,6 +45,32 @@ at_exit do
   ERRORS.each { |err| STDERR.puts err }
   exit 1
 end
+
+def exec_quietly(cmd)
+  exec_with_exclusions(cmd, [/.*/])
+end
+
+def exec_with_exclusions(cmd, exclusions)
+  Open3.popen2e(cmd) do |stdin, stdout_and_stderr, wait_thr|
+    while line = stdout_and_stderr.gets
+      exclude = false
+
+      if wait_thr.value.exitstatus == 0
+        exclusions.each do |exclusion|
+          if exclusion =~ line
+            exclude = true
+            break
+          end
+        end
+      end
+
+      puts line unless exclude
+    end
+
+    throw "ERROR: cmd failed with #{wait_thr.value.exitstatus}: #{cmd}" if wait_thr.value.exitstatus != 0
+  end
+end
+
 
 ### Tooling to build dependency graph
 
@@ -364,7 +395,7 @@ class MSBuild < Build
   end
 
   def build_project(csproj_path)
-    @env.exec_quiet "\"#{@msbuild}\" /nologo /m:4 /v:quiet #{csproj_path}"
+    exec_quietly "\"#{@msbuild}\" /nologo /m:4 /v:quiet #{csproj_path}"
   end
 end
 
@@ -376,7 +407,7 @@ class XBuild < Build
   end
 
   def build_project(csproj_path)
-    @env.exec_quiet "\"#{@xbuild}\" /nologo /v:quiet #{csproj_path}"
+    exec_quietly "\"#{@xbuild}\" /nologo /v:quiet #{csproj_path}"
   end
 end
 
@@ -397,31 +428,6 @@ class Env
 
   def xunit(cmd)
     raise "Not implemented"
-  end
-
-  def exec_quiet(cmd)
-    exec_with_exclusions(cmd, [/.*/])
-  end
-
-  def exec_with_exclusions(cmd, exclusions)
-    require 'open3'
-    Open3.popen2e(cmd) do |stdin, stdout_and_stderr, wait_thr|
-      while line = stdout_and_stderr.gets
-        exclude = false
-        if wait_thr.value.exitstatus == 0
-          exclusions.each do |exclusion|
-            if exclusion =~ line
-              exclude = true
-              break
-            end
-          end
-        end
-
-        puts line unless exclude
-      end
-
-      throw "ERROR: cmd failed with #{wait_thr.value.exitstatus}: #{cmd}" if wait_thr.value.exitstatus != 0
-    end
   end
 
   def self.nuget_download()
