@@ -1,6 +1,10 @@
 Rake for Visual Studio Solutions/Projects
 =========================================
-> Build and test your Visual Studio solution using [Rake](http://rake.rubyforge.org/)
+> Lazily build and test your Visual Studio solution using [Rake](http://rake.rubyforge.org/)
+
+- Build only when needed!
+- Test only when required!
+- Push without breaking the build!
 
 
 The problem
@@ -14,13 +18,13 @@ intelligent about running tests as it could be (and has weird caching behaviour
 when you change the names of your classes/methods).
 
 The clincher, though, is how unreliable MSBuild is at detecting when it needs to
-rebuild artifacts, leading to stale DLLs yielding odd results on occaision -
+rebuild artifacts, leading to stale DLLs yielding odd results on occasion -
 this unreliability is just terrible and unforgivable.
 
 
 The solution (get it?!)
 -----------------------
-For the cost of a dependency on Ruby (with comes bundled with Rake on Windows)
+For the cost of a dependency on Ruby (which comes bundled with Rake on Windows)
 you can have a speedy, cross-platform build system that only builds when
 neccessary, only runs tests when needed - but *always* runs when needed.
 
@@ -32,18 +36,38 @@ artifacts up into a zip with that filename? Rake's got you covered.
 Oh, and you don't need to know any Ruby or Rake stuff to get started; just drag
 the Rakefile in, and run `rake`!
 
+rake-vs makes assumptions about how your solution is structured, and guesses
+that you probably want all solution files in the same directory tree as the
+Rakefile to be built. It also assumes that if you reference a test framework
+from an assembly, then you probably want to run the tests in that assembly.
 
-Why not [Albacore](http://albacorebuild.net/)?
-----------------------------------------------
-- rake-vs has no dependencies (except Ruby & Rake of course!) which makes it
-  easier to get started, even if you have no familiarity with Ruby or Rake
-- Albacore is a more complete solution, whereas rake-vs is trying to be as
-  drag-and-drop as possible - if you're doing some very tricky things, then you
-  probably should be using Albacore
-- rake-vs assumes that you want to process all solution files, build all
-  projects, and test all assemblies referencing a test framework; in that sense
-  it's a zero-configuration approach, aiming at solving 90% of scenarios with
-  ease
+Achieve continuous-feedback by running rake-vs in a window, employing  a
+filewatcher to re-execute when changes occur. This is possible due to rake-vs'
+laziness; re-execution is cheap because only altered assemblies are built and
+tested.
+
+
+Better solutions
+----------------
+- Build
+  - [Albacore](http://albacorebuild.net/)
+    - also based off Rake
+    - configuration over convention: may suit you or your use-case better
+
+    If you have a highly bespoke project, this may well be a better option. On
+    the other hand it does have dependencies on other libraries, and needs a bit
+    of setup to get started, requiring knowledge of Ruby and Rake.
+
+- Test
+  - [NCrunch](http://www.ncrunch.net/)
+    - Re-run single tests as required through amazing instrumentation-based
+      voodoo magic
+    - Get feedback inside Visual Studio about line-coverage and test-status
+
+    NCrunch is awesome, but it also has an appropriate pricetag for that
+    awesomeness. It's nowhere near as easy to integrate into your
+    build-pipeline as rake-vs, either. On the other hand it's genuinely a work
+    of art...
 
 
 Usage
@@ -57,9 +81,8 @@ command-line, execute as follows:
 $ rake -T
 rake build    # Build everything, as needed
 rake clean    # Remove all assemblies and test notes
-rake default  # Build and test everything, as needed
 rake push     # Push to git after testing
-rake test     # Run tests, as needed
+rake test     # Run tests, as needed, this is the default action!
 
 $ rake clean test    # remove binaries and test everything
 $ rake clean build   # remove binaries and build everything, but don't test
@@ -143,6 +166,7 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 
 TODO
 ----
+- [ ] Release builds - suggestions welcome!
 - [ ] Dotnet Core support?
 - [ ] Colours & unicode?
 - [ ] MSTest on Windows?

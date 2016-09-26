@@ -1,7 +1,6 @@
-desc "Build and test everything, as needed"
 task :default => :test
 
-desc "Run tests, as needed"
+desc "Run tests, as needed, this is the default action!"
 task :test => :build
 
 desc "Build everything, as needed"
