@@ -40,7 +40,7 @@ require 'open3'
 STDOUT.sync = true
 ERRORS = []
 at_exit do
-  exit 0 if ERRORS.empty?
+  exit 0 if ERRORS.empty? and $!.nil?
 
   ERRORS.each { |err| STDERR.puts err }
   exit 1
