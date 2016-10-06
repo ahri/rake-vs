@@ -94,7 +94,9 @@ class System
   def process_sln(sln_path)
     sln_dir_path = File.dirname(sln_path)
 
-    @env.nuget "restore #{sln_path}"
+    unless FileList.new("**/packages.config").empty?
+      @env.nuget "restore #{sln_path}"
+    end
 
     process = lambda do |line|
       if /(?<csproj>[^"]+\.csproj)/ =~ line
