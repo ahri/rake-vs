@@ -31,6 +31,7 @@ task :push => :test do
   end
 end
 
+require './CustomRake' if File.exist? './CustomRake.rb'
 
 ### General tooling
 
