@@ -95,7 +95,7 @@ class System
     sln_dir_path = File.dirname(sln_path)
 
     unless FileList.new("**/packages.config").empty?
-      @env.nuget "restore #{sln_path}"
+      @env.nuget "restore #{ENV['NUGET_SOURCE'] and "-Source #{ENV['NUGET_SOURCE']} "}#{sln_path}"
     end
 
     process = lambda do |line|
