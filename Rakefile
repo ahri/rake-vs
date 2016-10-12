@@ -420,6 +420,10 @@ class Env
     ENV['windir'] == nil ? Posix.new : Win.new
   end
 
+  def exec_dotnet(cmd)
+    raise "Not implemented"
+  end
+
   def nuget(cmd)
     raise "Not implemented"
   end
@@ -468,6 +472,10 @@ class Win < Env
     MSBuild.new self
   end
 
+  def exec_dotnet(cmd)
+    exec_quietly cmd
+  end
+
   def nuget(cmd)
     exec_with_exclusions("\"#{Env.nuget_path}\" #{cmd}", Env.nuget_exclusions)
   end
@@ -481,6 +489,10 @@ end
 class Posix < Env
   def builder()
     XBuild.new self
+  end
+
+  def exec_dotnet(cmd)
+    exec_quietly "mono #{cmd}"
   end
 
   def nuget(cmd)
@@ -497,7 +509,8 @@ end
 
 
 ### Initialization
-system = System.new Env.construct
+ENVIRONMENT = Env.construct
+system = System.new ENVIRONMENT
 FileList.new("**/*.sln").each do |sln_path|
   system.process_sln(sln_path)
 end
