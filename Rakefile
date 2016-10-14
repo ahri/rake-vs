@@ -1,10 +1,10 @@
 task :default => :test
 
 desc "Run tests, as needed, this is the default action!"
-task :test => :build
+task :test => :build_debug
 
 desc "Build everything, as needed"
-task :build
+task :build_debug
 
 desc "Remove all assemblies and test notes"
 task :clean
@@ -131,19 +131,19 @@ class System
     # metadata to collect
     assembly_name = nil
     output_type = nil
-    assembly_path = nil
     source_paths = []
     resource_paths = []
     project_references = []
     depends_on_xunit = false
 
-    in_debug = false
+    configuration_paths = {}
+    build_cfg = nil
     File.open(csproj_path, 'r') do |fp|
       Xml.new
         .tag_end("Project/PropertyGroup/AssemblyName", lambda {|value| assembly_name = value })
         .tag_end("Project/PropertyGroup/OutputType", lambda {|value| output_type = value })
-        .tag_start("Project/PropertyGroup", lambda {|attrs| in_debug = /Debug/ =~ attrs['Condition'] })
-        .tag_end("Project/PropertyGroup/OutputPath", lambda {|value| assembly_path = normalize_path "#{csproj_root}/#{value}#{assembly_name}.#{if output_type == "Exe" then "exe" else "dll" end}" if in_debug })
+        .tag_start("Project/PropertyGroup", lambda {|attrs| /== '(?<build_cfg>[^'|]+)\|/ =~ attrs['Condition'] })
+        .tag_end("Project/PropertyGroup/OutputPath", lambda {|value| configuration_paths[build_cfg] = normalize_path "#{csproj_root}/#{value}#{assembly_name}.#{if output_type == "Exe" then "exe" else "dll" end}" })
         .tag_start("Project/ItemGroup/Compile", lambda {|attrs| source_paths.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
         .tag_start("Project/ItemGroup/ProjectReference", lambda {|attrs| project_references.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
         .tag_start("Project/ItemGroup/Reference", lambda {|attrs| depends_on_xunit = true if attrs['Include'].start_with? 'xunit.core,' })
@@ -152,60 +152,65 @@ class System
     end
 
     @project_dependency_map[csproj_path] = project_references
-    @project_to_artifact_map[csproj_path] = assembly_path
+    configuration_paths.each do |cfg, assembly_path| # TODO: build_project should use cfg, /property:Configuration=Debug - same for xbuild
+      @project_to_artifact_map[csproj_path] = assembly_path # TODO: this is not one-to-one anymore; projects have build configurations which each have an assembly path
+      # TODO: perhaps @project_to_artifact_map[csproj_path] = {"Debug" = "bin/Debug/blah.dll", "Release" = "bin/Release/blah.dll"}
+      # and then in the logic tying artifacts together, only tie up artifacts of the same build configuration
 
-    file csproj_path
+      file csproj_path
 
-    if depends_on_xunit
-      last_test_pass_note = System.last_test_pass_note(assembly_path)
-      task :test => last_test_pass_note
-      file last_test_pass_note => assembly_path do
-        if File.exist? assembly_path
-          begin
-            print "Testing #{assembly_path}... "
-            @env.xunit "#{assembly_path}"
-            puts "passed"
-            verbose(false) { touch last_test_pass_note }
-          rescue => e
-            ERRORS.push "Tests failed for #{assembly_path}: #{e}"
-            puts
+      if depends_on_xunit
+        last_test_pass_note = System.last_test_pass_note(assembly_path)
+        task :test => last_test_pass_note
+        file last_test_pass_note => assembly_path do
+          if File.exist? assembly_path
+            begin
+              print "Testing #{assembly_path}... "
+              @env.xunit "#{assembly_path}"
+              puts "passed"
+              verbose(false) { touch last_test_pass_note }
+            rescue => e
+              ERRORS.push "Tests failed for #{assembly_path}: #{e}"
+              puts
+            end
           end
+        end
+
+        task :clean do
+          rm_f last_test_pass_note
         end
       end
 
+      file assembly_path do
+        begin
+          verbose(false) { rm_f File.dirname(assembly_path) } # force the builder to work
+          # TODO: avoid hard-coding Debug here
+          verbose(false) { rm_f File.dirname(assembly_path.sub("/bin/Debug/", "/obj/Debug/")) } # force the builder to work
+          @env.builder.build_project(csproj_path)
+          verbose(false) { touch assembly_path }
+          puts "Built: #{assembly_path}"
+        rescue => e
+          ERRORS.push "Build failed for #{assembly_path}: #{e}"
+        end
+      end
+
+      task :build_debug => assembly_path # TODO: can't hard-code "debug" here; maybe do build_Debug, build_Release, etc.
+
       task :clean do
-        rm_f last_test_pass_note
+        rm_f assembly_path
       end
-    end
 
-    file assembly_path do
-      begin
-        verbose(false) { rm_f File.dirname(assembly_path) } # force the builder to work
-        verbose(false) { rm_f File.dirname(assembly_path.sub("/bin/Debug/", "/obj/Debug/")) } # force the builder to work
-        @env.builder.build_project(csproj_path)
-        verbose(false) { touch assembly_path }
-        puts "Built: #{assembly_path}"
-      rescue => e
-        ERRORS.push "Build failed for #{assembly_path}: #{e}"
+      file assembly_path => csproj_path
+
+      source_paths.each do |source_path|
+        file source_path
+        file assembly_path => source_path
       end
-    end
 
-    task :build => assembly_path
-
-    task :clean do
-      rm_f assembly_path
-    end
-
-    file assembly_path => csproj_path
-
-    source_paths.each do |source_path|
-      file source_path
-      file assembly_path => source_path
-    end
-
-    resource_paths.each do |resource_path|
-      file resource_path
-      file assembly_path => resource_path
+      resource_paths.each do |resource_path|
+        file resource_path
+        file assembly_path => resource_path
+      end
     end
   end
 end
