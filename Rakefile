@@ -166,6 +166,7 @@ class System
             verbose(false) { touch last_test_pass_note }
           rescue => e
             ERRORS.push "Tests failed for #{assembly_path}: #{e}"
+            puts
           end
         end
       end
@@ -177,7 +178,8 @@ class System
 
     file assembly_path do
       begin
-        verbose(false) { rm_f assembly_path } # force the builder to work
+        verbose(false) { rm_f File.dirname(assembly_path) } # force the builder to work
+        verbose(false) { rm_f File.dirname(assembly_path.sub("/bin/Debug/", "/obj/Debug/")) } # force the builder to work
         @env.builder.build_project(csproj_path)
         verbose(false) { touch assembly_path }
         puts "Built: #{assembly_path}"
@@ -482,7 +484,7 @@ class Win < Env
 
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
-    verbose(false) { sh "#{@xunit} #{cmd}" }
+    exec_quietly "#{@xunit} #{cmd}"
   end
 end
 
@@ -503,7 +505,7 @@ class Posix < Env
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
     # using -noshadow per https://github.com/xunit/xunit/issues/957
-    verbose(false) { sh "mono #{@xunit} #{cmd} -noshadow | tr -d '\\f'; exit $PIPESTATUS" }
+    exec_quietly "bash -c 'mono #{@xunit} #{cmd} -noshadow | tr -d '\\f'; exit $PIPESTATUS'"
   end
 end
 
