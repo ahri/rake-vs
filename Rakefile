@@ -162,7 +162,9 @@ class System
       file last_test_pass_note => assembly_path do
         if File.exist? assembly_path
           begin
+            print "Testing #{assembly_path}... "
             @env.xunit "#{assembly_path}"
+            puts "passed"
             verbose(false) { touch last_test_pass_note }
           rescue => e
             ERRORS.push "Tests failed for #{assembly_path}: #{e}"
