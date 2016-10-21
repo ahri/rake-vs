@@ -4,7 +4,7 @@ desc "Run tests, as needed, this is the default action!"
 task :test => :build
 
 desc "Build everything, as needed"
-task :build
+task :build => [:build_Debug, :build_Release]
 
 desc "Remove all assemblies and test notes"
 task :clean
@@ -114,7 +114,10 @@ class System
   def generate_tasks()
     @project_dependency_map.each do |from, to|
       to.each do |referenced|
-        file @project_to_artifact_map[from]=> @project_to_artifact_map[referenced]
+        @project_to_artifact_map[from].each do |cfg, artifact|
+          next if not @project_to_artifact_map[referenced].key? cfg
+          file artifact => @project_to_artifact_map[referenced][cfg]
+        end
       end
     end
   end
@@ -127,23 +130,24 @@ class System
 
   def process_csproj(csproj_path)
     csproj_root = File.dirname csproj_path
+    file csproj_path
 
     # metadata to collect
     assembly_name = nil
     output_type = nil
-    assembly_path = nil
     source_paths = []
     resource_paths = []
     project_references = []
     depends_on_xunit = false
 
-    in_debug = false
+    configuration_paths = {}
+    build_cfg = nil
     File.open(csproj_path, 'r') do |fp|
       Xml.new
         .tag_end("Project/PropertyGroup/AssemblyName", lambda {|value| assembly_name = value })
         .tag_end("Project/PropertyGroup/OutputType", lambda {|value| output_type = value })
-        .tag_start("Project/PropertyGroup", lambda {|attrs| in_debug = /Debug/ =~ attrs['Condition'] })
-        .tag_end("Project/PropertyGroup/OutputPath", lambda {|value| assembly_path = normalize_path "#{csproj_root}/#{value}#{assembly_name}.#{if output_type == "Exe" then "exe" else "dll" end}" if in_debug })
+        .tag_start("Project/PropertyGroup", lambda {|attrs| /== '(?<build_cfg>[^'|]+)\|/ =~ attrs['Condition'] })
+        .tag_end("Project/PropertyGroup/OutputPath", lambda {|value| configuration_paths[build_cfg] = normalize_path "#{csproj_root}/#{value}#{assembly_name}.#{if output_type == "Exe" then "exe" else "dll" end}" })
         .tag_start("Project/ItemGroup/Compile", lambda {|attrs| source_paths.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
         .tag_start("Project/ItemGroup/ProjectReference", lambda {|attrs| project_references.push(normalize_path "#{csproj_root}/#{attrs['Include']}") })
         .tag_start("Project/ItemGroup/Reference", lambda {|attrs| depends_on_xunit = true if attrs['Include'].start_with? 'xunit.core,' })
@@ -152,60 +156,63 @@ class System
     end
 
     @project_dependency_map[csproj_path] = project_references
-    @project_to_artifact_map[csproj_path] = assembly_path
+    configuration_paths.each do |cfg, assembly_path|
+      if depends_on_xunit
+        next if cfg != "Debug"
 
-    file csproj_path
-
-    if depends_on_xunit
-      last_test_pass_note = System.last_test_pass_note(assembly_path)
-      task :test => last_test_pass_note
-      file last_test_pass_note => assembly_path do
-        if File.exist? assembly_path
-          begin
-            print "Testing #{assembly_path}... "
-            @env.xunit "#{assembly_path}"
-            puts "passed"
-            verbose(false) { touch last_test_pass_note }
-          rescue => e
-            ERRORS.push "Tests failed for #{assembly_path}: #{e}"
-            puts
+        last_test_pass_note = System.last_test_pass_note(assembly_path)
+        task :test => last_test_pass_note
+        file last_test_pass_note => assembly_path do
+          if File.exist? assembly_path
+            begin
+              print "Testing #{assembly_path}... "
+              @env.xunit "#{assembly_path}"
+              puts "passed"
+              verbose(false) { touch last_test_pass_note }
+            rescue => e
+              ERRORS.push "Tests failed for #{assembly_path}: #{e}"
+              puts
+            end
           end
+        end
+
+        task :clean do
+          rm_f last_test_pass_note
         end
       end
 
+      @project_to_artifact_map[csproj_path] = {} if not @project_to_artifact_map.key? csproj_path
+      @project_to_artifact_map[csproj_path][cfg] = assembly_path
+
+      file assembly_path do
+        begin
+          verbose(false) { rm_f File.dirname(assembly_path) } # force the builder to work
+          verbose(false) { parts = assembly_path.rpartition("/bin/"); rm_rf File.dirname("#{parts[0]}/obj/#{parts[2]}") } # force the builder to work
+          @env.builder.build_project(csproj_path, cfg)
+          verbose(false) { touch assembly_path }
+          puts "Built: #{assembly_path}"
+        rescue => e
+          ERRORS.push "Build failed for #{assembly_path}: #{e}"
+        end
+      end
+
+      task "build_#{cfg}" => assembly_path
+
       task :clean do
-        rm_f last_test_pass_note
+        rm_f assembly_path
       end
-    end
 
-    file assembly_path do
-      begin
-        verbose(false) { rm_f File.dirname(assembly_path) } # force the builder to work
-        verbose(false) { rm_f File.dirname(assembly_path.sub("/bin/Debug/", "/obj/Debug/")) } # force the builder to work
-        @env.builder.build_project(csproj_path)
-        verbose(false) { touch assembly_path }
-        puts "Built: #{assembly_path}"
-      rescue => e
-        ERRORS.push "Build failed for #{assembly_path}: #{e}"
+      file assembly_path => csproj_path
+
+      source_paths.each do |source_path|
+        file source_path
+        file assembly_path => source_path
       end
-    end
 
-    task :build => assembly_path
-
-    task :clean do
-      rm_f assembly_path
-    end
-
-    file assembly_path => csproj_path
-
-    source_paths.each do |source_path|
-      file source_path
-      file assembly_path => source_path
-    end
-
-    resource_paths.each do |resource_path|
-      file resource_path
-      file assembly_path => resource_path
+      resource_paths.each do |resource_path|
+        file resource_path
+        file assembly_path => resource_path
+      end
     end
   end
 end
@@ -387,7 +394,7 @@ end
 class Build
   include Rake::DSL
 
-  def build_project(csproj_path)
+  def build_project(csproj_path, cfg)
     raise "Not implemented"
   end
 end
@@ -400,8 +407,8 @@ class MSBuild < Build
     raise "Can't find MSBuild" if @msbuild == nil
   end
 
-  def build_project(csproj_path)
-    exec_quietly "\"#{@msbuild}\" /nologo /m:4 /v:quiet #{csproj_path}"
+  def build_project(csproj_path, cfg)
+    exec_quietly "\"#{@msbuild}\" /nologo /m:4 /v:quiet /property:Configuration=#{cfg} #{csproj_path}"
   end
 end
 
@@ -412,8 +419,8 @@ class XBuild < Build
     raise "Can't find XBuild" if @xbuild == nil
   end
 
-  def build_project(csproj_path)
-    exec_quietly "\"#{@xbuild}\" /nologo /v:quiet #{csproj_path}"
+  def build_project(csproj_path, cfg)
+    exec_quietly "\"#{@xbuild}\" /nologo /v:quiet /property:Configuration=#{cfg} #{csproj_path}"
   end
 end
 

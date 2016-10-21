@@ -166,7 +166,7 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 
 TODO
 ----
-- [ ] Release builds - suggestions welcome!
+- [x] Release builds
 - [ ] Dotnet Core support?
 - [ ] Colours & unicode?
 - [ ] MSTest on Windows?
