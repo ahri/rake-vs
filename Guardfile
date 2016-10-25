@@ -1,24 +1,16 @@
 # # gem install guard guard-shell
 # $ guard -ci
 
-require 'pty'
+require 'open3'
 ignore %r{/\.}
 
 guard :shell do
   watch /^(Rakefile|.*\.(cs|csproj|sln|csv|xml|json|ya?ml))$/ do |m|
-    puts "#{m[0]} changed"
+    puts ">>> #{m[0]} changed"
 
-    begin
-      PTY.spawn "rake" do |stdout, stdin, pid|
-        begin
-          stdout.each { |line| print line }
-        rescue Errno::EIO
-        end
-
-        puts ">>> Rake completed"
-      end
-    rescue PTY::ChildExited
-      puts ">>> Rake failed"
+    Open3.popen2e "rake" do |stdin, stdout_and_stderr, wait_thr|
+      stdout_and_stderr.each { |line| print line }
+      puts ">>> Rake completed"
     end
   end
 end
