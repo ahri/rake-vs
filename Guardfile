@@ -2,10 +2,15 @@
 # $ guard -ci
 
 require 'open3'
+
+STDOUT.sync = true
+
 ignore %r{/\.}
+ignore %r{/obj/}
+ignore %r{/bin/}
 
 guard :shell do
-  watch /^(Rakefile|.*\.(cs|csproj|sln|csv|xml|json|ya?ml))$/ do |m|
+  watch /^(Rakefile|CustomRake.rb|.*\.(cs|csproj|sln|csv|xml|json|ya?ml))$/ do |m|
     puts ">>> #{m[0]} changed"
 
     Open3.popen2e "rake" do |stdin, stdout_and_stderr, wait_thr|
