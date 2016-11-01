@@ -465,7 +465,7 @@ class Env
   end
 
   def self.nuget_path()
-    nuget = FileList.new("**/nuget.exe").last
+    nuget = FileList.new("**/nuget.exe").map {|path| "./#{path}"}.last
     nuget = which "nuget" if nuget == nil
     nuget = Env.nuget_download if nuget == nil
     raise "Please install nuget" if nuget == nil
