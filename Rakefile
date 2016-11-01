@@ -403,7 +403,7 @@ class MSBuild < Build
   def initialize(env)
     @env = env
     @msbuild = normalize_path(which "msbuild")
-    @msbuild = FileList.new(normalize_path "#{ENV['windir']}/Microsoft.NET/Framework/**/MSBuild.exe").last if @msbuild == nil
+    @msbuild = FileList.new(normalize_path "#{ENV['WINDIR']}/Microsoft.NET/Framework/**/MSBuild.exe").last if @msbuild == nil
     raise "Can't find MSBuild" if @msbuild == nil
   end
 
@@ -428,7 +428,7 @@ class Env
   include Rake::DSL
 
   def self.construct()
-    ENV['windir'] == nil ? Posix.new : Win.new
+    ENV['WINDIR'] == nil ? Posix.new : Win.new
   end
 
   def exec_dotnet(cmd)
