@@ -493,7 +493,7 @@ class Win < Env
 
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
-    exec_quietly "#{@xunit} #{cmd}"
+    exec_quietly "#{@xunit} #{cmd} #{ENV['XUNIT_OPTIONS']}"
   end
 end
 
@@ -514,7 +514,7 @@ class Posix < Env
   def xunit(cmd)
     @xunit = FileList.new("**/xunit.console.exe").last if @xunit == nil
     # using -noshadow per https://github.com/xunit/xunit/issues/957
-    exec_quietly "bash -c 'mono #{@xunit} #{cmd} -noshadow | tr -d '\\f'; exit $PIPESTATUS'"
+    exec_quietly "bash -c 'mono #{@xunit} #{cmd} #{ENV['XUNIT_OPTIONS']} -noshadow | tr -d '\\f'; exit $PIPESTATUS'"
   end
 end
 
