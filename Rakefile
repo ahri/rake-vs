@@ -402,9 +402,10 @@ end
 class MSBuild < Build
   def initialize(env)
     @env = env
-    @msbuild = normalize_path(which "msbuild")
-    @msbuild = FileList.new(normalize_path "#{ENV['WINDIR']}/Microsoft.NET/Framework/**/MSBuild.exe").last if @msbuild == nil
+    @msbuild = which "msbuild"
+    @msbuild = FileList.new("#{normalize_path ENV['WINDIR']}/Microsoft.NET/Framework/**/MSBuild.exe").last if @msbuild == nil
     raise "Can't find MSBuild" if @msbuild == nil
+    @msbuild = normalize_path @msbuild
   end
 
   def build_project(csproj_path, cfg)
