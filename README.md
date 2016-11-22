@@ -97,16 +97,13 @@ $ git clean -xfd  # remove everything we haven't committed to source control
 $ rake
 Downloading nuget...
 ...done!
+[... nuget package restoration stuff elided ...]
 Built: Sample/Library/bin/Debug/Library.dll
 Built: Sample/Sample/bin/Debug/Sample.exe
 Built: Sample/Tests/bin/Debug/Tests.dll
-xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
-  Discovering: Tests
-  Discovered:  Tests
-  Starting:    Tests
-  Finished:    Tests
-=== TEST EXECUTION SUMMARY ===
-   Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Time: 0.141s
+Built: Sample/Library/bin/Release/Library.dll
+Built: Sample/Sample/bin/Release/Sample.exe
+Testing Sample/Tests/bin/Debug/Tests.dll... passed
 
 $ rake # does nothing - we've not changed any files
 
@@ -119,13 +116,7 @@ $ touch Sample/Library/Library.cs # change something lower down
 Built: Sample/Library/bin/Debug/Library.dll
 Built: Sample/Sample/bin/Debug/Sample.exe
 Built: Sample/Tests/bin/Debug/Tests.dll
-xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
-  Discovering: Tests
-  Discovered:  Tests
-  Starting:    Tests
-  Finished:    Tests
-=== TEST EXECUTION SUMMARY ===
-   Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Time: 0.121s
+Testing Sample/Tests/bin/Debug/Tests.dll... passed
 # Note that a rebuild of everything depending on Library.dll was triggered,
 # which in turn forced re-execution of affected tests
 
@@ -166,7 +157,6 @@ xUnit.net Console Runner (64-bit .NET 4.0.30319.42000)
 
 TODO
 ----
-- [x] Release builds
 - [ ] Dotnet Core support?
 - [ ] Colours & unicode?
 - [ ] MSTest on Windows?
