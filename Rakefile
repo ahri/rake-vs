@@ -77,8 +77,7 @@ end
 DIR = File.expand_path(File.dirname(__FILE__))
 DIR_REGEX = Regexp.new("^" + Regexp.escape(DIR + "/"))
 def normalize_path(path)
-  path.gsub!("\\", "/")
-  return (File.expand_path path).sub(DIR_REGEX, "")
+  return (File.expand_path path.gsub("\\", "/")).sub(DIR_REGEX, "")
 end
 
 class System
@@ -409,7 +408,7 @@ class MSBuild < Build
   end
 
   def build_project(csproj_path, cfg)
-    exec_quietly "\"#{@msbuild}\" /nologo /m:4 /v:quiet /property:Configuration=#{cfg} #{csproj_path}"
+    exec_quietly "cmd /C \"\"#{@msbuild}\" /nologo /maxcpucount:4 /verbosity:quiet /property:Configuration=#{cfg} \"#{csproj_path}\"\""
   end
 end
 
